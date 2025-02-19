@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        #chat-container {
+            width: 90%;
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #messages {
+            list-style: none;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #messages li {
+            padding: 8px 12px;
+            margin: 5px;
+            border-radius: 5px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .my-message {
+            background: #4CAF50;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .other-message {
+            background: #ddd;
+            color: black;
+            align-self: flex-start;
+        }
+
+        #message-form {
+            display: flex;
+            padding: 10px;
+            background: #eee;
+        }
+
+        #message-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        #send-button {
+            padding: 8px 12px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-left: 5px;
+        }
+
+        #send-button:hover {
+            background: #45a049;
+        }
+    </style>
+<body>
+
+    <div id="chat-container">
+        <ul id="messages"></ul>
+        <form id="message-form">
+            <input id="message-input" type="text" placeholder="Type a message..." required>
+            <button id="send-button" type="submit">Send</button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const messageInput = document.getElementById('message-input');
+        const messageForm = document.getElementById('message-form');
+        const messagesList = document.getElementById('messages');
+
+        // Get sender_id and receiver_id from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const senderId = urlParams.get('id1'); // Assuming sender_id is passed as 'id1'
+        const receiverId = urlParams.get('id2'); // Assuming receiver_id is passed as 'id2'
+
+        console.log("Sender ID:", senderId);
+        console.log("Receiver ID:", receiverId);
+
+        // Register this receiver on the socket server
+        socket.emit('register', receiverId);
+
+        // Request previous messages when the page loads
+        socket.emit('get previous messages', senderId, receiverId);
+
+        // Handle new message submission
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (message) {
+                socket.emit('chat message', message, senderId, receiverId); // Send message with sender_id and receiver_id
+                displayMessage(message, 'my-message');
+                messageInput.value = '';
+            }
+        });
+
+        // Receive updated messages from server in real-time
+        socket.on('updated messages', (messages) => {
+            console.log("Updated messages:", messages);
+            // Clear the messages list to prevent duplicates
+            messagesList.innerHTML = '';
+            // Display all updated messages
+            messages.forEach(msg => {
+                const className = (msg.sender_id === parseInt(senderId)) ? 'my-message' : 'other-message';
+                displayMessage(msg.message, className);
+            });
+        });
+
+        // Function to display messages
+        function displayMessage(message, className) {
+            const li = document.createElement('li');
+            li.textContent = message;
+            li.classList.add(className);
+            messagesList.appendChild(li);
+            messagesList.scrollTop = messagesList.scrollHeight; // Auto-scroll to the latest message
+        }
+    </script>
+
+</body>
+</html>
